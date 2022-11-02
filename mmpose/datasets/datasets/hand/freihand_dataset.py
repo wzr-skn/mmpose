@@ -64,7 +64,8 @@ class FreiHandDataset(Kpt2dSviewRgbImgTopDownDataset):
                  data_cfg,
                  pipeline,
                  dataset_info=None,
-                 test_mode=False):
+                 test_mode=False,
+                 cut_hand=False):
 
         if dataset_info is None:
             warnings.warn(
@@ -82,6 +83,7 @@ class FreiHandDataset(Kpt2dSviewRgbImgTopDownDataset):
             dataset_info=dataset_info,
             test_mode=test_mode)
 
+        self.cut_hand = cut_hand
         self.ann_info['use_different_joint_weights'] = False
         self.db = self._get_db()
 
@@ -108,8 +110,11 @@ class FreiHandDataset(Kpt2dSviewRgbImgTopDownDataset):
                 joints_3d[:, :2] = keypoints[:, :2]
                 joints_3d_visible[:, :2] = np.minimum(1, keypoints[:, 2:3])
 
-                # use the entire image which is 224x224
-                bbox = np.array([0, 0, 224, 224], dtype=np.float32)
+                if self.cut_hand:
+                    bbox = obj['bbox']
+                else:
+                    # use the entire image which is 224x224
+                    bbox = np.array([0, 0, 224, 224], dtype=np.float32)
 
                 image_file = osp.join(self.img_prefix, self.id2name[img_id])
                 gt_db.append({

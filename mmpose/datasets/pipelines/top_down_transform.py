@@ -311,10 +311,13 @@ class TopDownAffine:
         else:
             trans = get_affine_transform(c, s, r, image_size)
             if not isinstance(img, list):
+                # cv2.imwrite("/home/ubuntu/mmpose/origin.jpg", img)
                 img = cv2.warpAffine(
                     img,
                     trans, (int(image_size[0]), int(image_size[1])),
                     flags=cv2.INTER_LINEAR)
+                # img = img[:, :, ::-1]
+                # cv2.imwrite("/home/ubuntu/mmpose/tmp.jpg", img)
             else:
                 img = [
                     cv2.warpAffine(

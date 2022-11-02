@@ -277,12 +277,19 @@ class TopdownHeatmapSimpleHead(TopdownHeatmapBaseHead):
 
         if self.input_transform == 'resize_concat':
             inputs = [inputs[i] for i in self.in_index]
+            # upsampled_inputs = [
+            #     resize(
+            #         input=x,
+            #         size=inputs[0].shape[2:],
+            #         mode='bilinear',
+            #         align_corners=self.align_corners) for x in inputs
+            # ]
+            # 最近邻插值
             upsampled_inputs = [
                 resize(
                     input=x,
                     size=inputs[0].shape[2:],
-                    mode='bilinear',
-                    align_corners=self.align_corners) for x in inputs
+                    mode='nearest') for x in inputs
             ]
             inputs = torch.cat(upsampled_inputs, dim=1)
         elif self.input_transform == 'multiple_select':

@@ -10,6 +10,7 @@ from mmpose.apis import init_pose_model
 try:
     import onnx
     import onnxruntime as rt
+    from onnxsim import simplify
 except ImportError as e:
     raise ImportError(f'Please install onnx and onnxruntime first. {e}')
 
@@ -17,6 +18,14 @@ try:
     from mmcv.onnx.symbolic import register_extra_symbolics
 except ModuleNotFoundError:
     raise NotImplementedError('please update mmcv to version>=1.0.4')
+
+
+def recursive_fuse_conv(module, prefix=''):
+    for name, child in module._modules.items():
+        if not hasattr(child, 'fuse_conv'):
+            recursive_fuse_conv(child, prefix + name + '.')
+        else:
+            child.fuse_conv()
 
 
 def _convert_batchnorm(module):
@@ -43,8 +52,10 @@ def _convert_batchnorm(module):
 
 def pytorch2onnx(model,
                  input_shape,
+                 input_names,
                  opset_version=11,
                  show=False,
+                 output_names='heatmaps',
                  output_file='tmp.onnx',
                  verify=False):
     """Convert pytorch model to onnx model.
@@ -55,12 +66,11 @@ def pytorch2onnx(model,
         opset_version (int): Opset version of onnx used. Default: 11.
         show (bool): Determines whether to print the onnx model architecture.
             Default: False.
+        input_name: input name.
         output_file (str): Output onnx model name. Default: 'tmp.onnx'.
         verify (bool): Determines whether to verify the onnx model.
             Default: False.
     """
-    model.cpu().eval()
-
     one_img = torch.randn(input_shape)
 
     register_extra_symbolics(opset_version)
@@ -68,6 +78,8 @@ def pytorch2onnx(model,
         model,
         one_img,
         output_file,
+        input_names=input_names,
+        output_names=output_names,
         export_params=True,
         keep_initializers_as_inputs=True,
         verbose=show,
@@ -113,6 +125,8 @@ def parse_args():
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument('--show', action='store_true', help='show onnx graph')
     parser.add_argument('--output-file', type=str, default='tmp.onnx')
+    parser.add_argument('--output-names', type=str, nargs='+', default=["heatmaps"], help='output names of network')
+    parser.add_argument('--input-names', type=str, nargs='+', default=["data"], help='input names of network')
     parser.add_argument('--opset-version', type=int, default=11)
     parser.add_argument(
         '--verify',
@@ -155,11 +169,25 @@ if __name__ == '__main__':
         raise NotImplementedError(
             'Please implement the forward method for exporting.')
 
+    model.cpu().eval()
+    recursive_fuse_conv(model)
     # convert model to onnx file
     pytorch2onnx(
         model,
         args.shape,
+        args.input_names,
         opset_version=args.opset_version,
         show=args.show,
+        output_names=args.output_names,
         output_file=args.output_file,
         verify=args.verify)
+
+    model_opt, check_ok = simplify(args.output_file,
+                                   3,
+                                   True,
+                                   False,
+                                   dict(),
+                                   None,
+                                   False,
+                                   )
+    onnx.save(model_opt, args.output_file)

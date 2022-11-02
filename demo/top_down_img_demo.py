@@ -37,9 +37,9 @@ def main():
         help='Root of the output img file. '
         'Default not saving the visualization images.')
     parser.add_argument(
-        '--device', default='cuda:0', help='Device used for inference')
+        '--device', default='cuda:1', help='Device used for inference')
     parser.add_argument(
-        '--kpt-thr', type=float, default=0.3, help='Keypoint score threshold')
+        '--kpt-thr', type=float, default=0.1, help='Keypoint score threshold')
     parser.add_argument(
         '--radius',
         type=int,
@@ -86,6 +86,10 @@ def main():
         image_name = os.path.join(args.img_root, image['file_name'])
         ann_ids = coco.getAnnIds(image_id)
 
+        # 临时打个补丁，panoptic数据集标签文件中images的file_name与图片名对不上，因此把标签文件file_name全都小写
+        if len(args.json_file) > 18 and args.json_file[-18:] == 'panoptic_test.json':
+            image_name = image_name.lower()
+
         # make person bounding boxes
         person_results = []
         for ann_id in ann_ids:
@@ -93,6 +97,8 @@ def main():
             ann = coco.anns[ann_id]
             # bbox format is 'xywh'
             person['bbox'] = ann['bbox']
+            person['bbox'] = [0, 0, 128, 128]
+            image_name = os.path.join(args.img_root, str(i)+'.jpg')
             person_results.append(person)
 
         # test a single image, with a list of bboxes

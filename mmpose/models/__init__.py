@@ -8,6 +8,8 @@ from .heads import *  # noqa
 from .losses import *  # noqa
 from .necks import *  # noqa
 from .utils import *  # noqa
+from custom_op import * # noqa
+
 
 __all__ = [
     'BACKBONES', 'HEADS', 'NECKS', 'LOSSES', 'POSENETS', 'MESH_MODELS',
